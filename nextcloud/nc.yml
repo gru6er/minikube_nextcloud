@@ -1,0 +1,101 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nc-claim
+  namespace: nextcloud
+spec:
+  storageClassName: nfs-csi
+  accessModes: [ReadWriteMany]
+  resources:
+    requests:
+      storage: 50Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nextcloud
+  namespace: nextcloud
+  labels:
+    app: nextcloud
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: nextcloud
+  template:
+    metadata:
+      labels:
+        app: nextcloud
+    spec:
+      volumes:
+        - name: pv-nc-storage
+          persistentVolumeClaim:
+            claimName: nc-claim
+      containers:
+        - name: nextcloud
+          image: nextcloud:26.0.9-apache
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: "500Mi"
+              cpu: "500m"
+            limits:
+              memory: "800Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: pv-nc-storage
+              mountPath: "/var/www/html/config"
+              subPath: config
+            - name: pv-nc-storage
+              mountPath: "/var/www/html/data"
+              subPath: data
+          ports:
+            - containerPort: 80
+          envFrom:
+            - secretRef:
+                name: secret-nc
+            - configMapRef:
+                name: nc-cm
+          # livenessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: 80
+          #     httpHeaders:
+          #       - name: Host
+          #         value: localhost
+          #   initialDelaySeconds: 10
+          #   periodSeconds: 10
+          #   timeoutSeconds: 5
+          #   successThreshold: 1
+          #   failureThreshold: 3
+          # readinessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: 80
+          #     httpHeaders:
+          #       - name: Host
+          #         value: localhost
+          #   initialDelaySeconds: 10
+          #   periodSeconds: 10
+          #   timeoutSeconds: 5
+          #   successThreshold: 1
+          #   failureThreshold: 3
+          # startupProbe:
+          #   httpGet:
+          #     path: /status.php
+          #     port: 80
+          #     httpHeaders:
+          #       - name: Host
+          #         value: localhost
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 10
+          #   timeoutSeconds: 5
+          #   successThreshold: 1
+          #   failureThreshold: 1

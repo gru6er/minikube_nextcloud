@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-nc
+  namespace: nextcloud
+spec:
+  serviceName: postgres-nc
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-nc
+  template:
+    metadata:
+      labels:
+        app: postgres-nc
+    spec:
+      containers:
+        - name: postgres-nc
+          image: postgres:16
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+            - configMapRef:
+                name: postgres-cm
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: postgres-pv-claim
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-pv-claim
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: nfs-csi
+        resources:
+          requests:
+            storage: 10Gi
